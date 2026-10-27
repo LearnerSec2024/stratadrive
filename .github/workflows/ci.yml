@@ -1,0 +1,66 @@
+name: Foundation validation
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Optional immutable GitHub commit for a paired validation rerun
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: foundation-${{ github.workflow }}-${{ github.ref }}-${{ inputs.source_sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CI: "true"
+      CI_PROVIDER: github
+      CI_SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+      CI_SOURCE_REPOSITORY: ${{ github.repository }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - run: npm run ci:preflight
+      - name: Verify local Linux Docker engine and Compose
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${DOCKER_HOST:-}" && test -z "${DOCKER_CONTEXT:-}"
+          test "$(docker context inspect --format '{{.Endpoints.docker.Host}}')" = "unix:///var/run/docker.sock"
+          test "$(docker info --format '{{.OSType}}')" = "linux"
+          docker compose version
+      - run: npm ci
+      - run: npm exec playwright install --with-deps chromium
+      - run: npm run ci:validate
+      - name: Stage only safe validation evidence
+        id: stage_evidence
+        if: always()
+        run: node scripts/ci.mjs evidence
+      - name: Preserve available validation evidence
+        if: always() && steps.stage_evidence.outcome == 'success'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: foundation-github-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            reports/ci-evidence/
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,90 @@
+# Register this pipeline against the authoritative GitHub repository only after owner approval.
+parameters:
+  - name: sourceSha
+    displayName: Optional immutable GitHub commit for a paired rerun (must already be fetched)
+    type: string
+    default: ""
+
+trigger:
+  branches:
+    include: [main, master]
+pr:
+  branches:
+    include: ["*"]
+
+pool:
+  vmImage: ubuntu-24.04
+
+variables:
+  CI: "true"
+  CI_PROVIDER: azure
+  CI_SOURCE_REPOSITORY: $(Build.Repository.Name)
+  NEXT_TELEMETRY_DISABLED: "1"
+  SafeEvidenceStaged: "false"
+
+jobs:
+  - job: Validate
+    displayName: Independent GitHub source validation
+    timeoutInMinutes: 40
+    steps:
+      - checkout: self
+        clean: true
+        fetchDepth: 0
+        persistCredentials: false
+      - bash: |
+          set -euo pipefail
+          if [ -n "$SOURCE_SHA" ]; then
+            [[ "$SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "An immutable SHA is required"; exit 1; }
+            git cat-file -e "${SOURCE_SHA}^{commit}"
+            git checkout --detach "$SOURCE_SHA"
+          fi
+          expected_sha="${SOURCE_SHA:-$EVENT_SHA}"
+          [[ "$expected_sha" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "An immutable event SHA is required"; exit 1; }
+          echo "##vso[task.setvariable variable=CI_SOURCE_SHA]$expected_sha"
+        displayName: Select explicit paired source if requested
+        env:
+          SOURCE_SHA: ${{ parameters.sourceSha }}
+          EVENT_SHA: $(Build.SourceVersion)
+      - task: UseNode@1
+        inputs:
+          version: "22.15.0"
+        displayName: Use pinned Node and bundled npm
+      - bash: npm run ci:preflight
+        displayName: Verify source identity and toolchain before installation
+      - bash: |
+          set -euo pipefail
+          test -z "${DOCKER_HOST:-}" && test -z "${DOCKER_CONTEXT:-}"
+          test "$(docker context inspect --format '{{.Endpoints.docker.Host}}')" = "unix:///var/run/docker.sock"
+          test "$(docker info --format '{{.OSType}}')" = "linux"
+          docker compose version
+        displayName: Verify local Linux Docker engine and Compose
+      - bash: npm ci
+        displayName: Install from lockfile independently
+      - bash: npm exec playwright install --with-deps chromium
+        displayName: Install pinned Chromium and dependencies
+      - bash: npm run ci:validate
+        displayName: Run shared required validation
+      - bash: |
+          set -euo pipefail
+          node scripts/ci.mjs evidence
+          echo '##vso[task.setvariable variable=SafeEvidenceStaged]true'
+        condition: always()
+        displayName: Stage only safe validation evidence
+      - task: PublishTestResults@2
+        condition: and(always(), eq(variables['SafeEvidenceStaged'], 'true'))
+        inputs:
+          testResultsFormat: JUnit
+          testResultsFiles: reports/ci-evidence/*junit.xml
+          failTaskOnFailedTests: true
+          failTaskOnMissingResultsFile: false
+          testRunTitle: Foundation validation
+      - task: PublishPipelineArtifact@1
+        condition: and(always(), eq(variables['SafeEvidenceStaged'], 'true'))
+        inputs:
+          targetPath: reports/ci-evidence
+          artifact: foundation-azure-$(Build.BuildId)
+      - task: PublishPipelineArtifact@1
+        condition: and(always(), eq(variables['SafeEvidenceStaged'], 'true'))
+        inputs:
+          targetPath: playwright-report
+          artifact: browser-reports-azure-$(Build.BuildId)

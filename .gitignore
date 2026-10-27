@@ -12,6 +12,11 @@
 
 # testing
 /coverage
+/reports/
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.auth/
 
 # next.js
 /.next/
@@ -23,6 +28,8 @@
 # misc
 .DS_Store
 *.pem
+# Microsoft Office temporary lock files
+~$*
 
 # debug
 npm-debug.log*

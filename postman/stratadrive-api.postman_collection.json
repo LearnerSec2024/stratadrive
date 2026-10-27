@@ -1,0 +1,1440 @@
+{
+  "info": {
+    "_postman_id": "ca54999c-558e-4b06-98ca-d073be5fb33c",
+    "name": "StrataDrive API — local manual tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Import the StrataDrive local environment and select it. Start the app/database using postman/README.md, then send requests in numerical order. There is one contracted business operation with 11 manual scenarios. Only 01 can create a standard synthetic row; its key is retained across resends. Replay/conflict require the captured receipt.\n\nCanonical source: contracts/openapi.yaml; SHA256 55e4370470fb400d24311312661fcce045cc60f8c28866f4ee30569d13f2cc2e; prepared 2026-10-26. The schema URL in info is format metadata, not a request destination. No credentials are included. Error statuses 408/429/500/503 are documented in the canonical contract but are not forced by these normal manual requests. See postman/README.md for capacity, uncertainty and scoped cleanup guidance."
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const base = pm.environment.get('baseUrl');",
+          "const resolved = pm.variables.replaceIn(pm.request.url.toString());",
+          "if (!['http://127.0.0.1:3000', 'http://localhost:3000'].includes(base) || resolved !== base + '/api/v1/enquiries' || pm.request.method !== 'POST') {",
+          "  console.error('Blocked: select StrataDrive local and use its exact loopback baseUrl on port 3000 and POST enquiry URL.');",
+          "  pm.execution.skipRequest();",
+          "  throw new Error('Blocked: select StrataDrive local and use its exact loopback baseUrl on port 3000 and POST enquiry URL.');",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response is JSON', function () {",
+          "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});",
+          "pm.test('Response is not cached', function () {",
+          "  pm.expect(pm.response.headers.get('Cache-Control')).to.equal('no-store');",
+          "});"
+        ]
+      }
+    }
+  ],
+  "protocolProfileBehavior": {
+    "followRedirects": false
+  },
+  "item": [
+    {
+      "name": "01 Enquiry save and retry",
+      "item": [
+        {
+          "name": "01 Save synthetic enquiry",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let key = pm.environment.get('enquiryKey');",
+                  "if (!key) {",
+                  "  key = pm.variables.replaceIn('{{$guid}}');",
+                  "  pm.environment.set('enquiryKey', key);",
+                  "}",
+                  "if (!new RegExp(\"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\", 'i').test(key)) {",
+                  "  console.error('Blocked: enquiryKey must be a UUIDv4. Keep an uncertain key unchanged; clear it only to begin an explicit new intent.');",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error('Blocked: enquiryKey must be a UUIDv4. Keep an uncertain key unchanged; clear it only to begin an explicit new intent.');",
+                  "}",
+                  "pm.variables.set('requestKey', key);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('New save is 201; a same-key resend is 200', function () {",
+                  "  pm.expect([201, 200]).to.include(pm.response.code);",
+                  "});",
+                  "if ([201, 200].includes(pm.response.code)) {",
+                  "  const receipt = pm.response.json();",
+                  "  let valid = false;",
+                  "  pm.test('Receipt has only the contracted fields and valid values', function () {",
+                  "    pm.expect(Object.keys(receipt).sort()).to.deep.equal(['enquiryId', 'receivedAt', 'status']);",
+                  "    pm.expect(receipt.enquiryId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(receipt.receivedAt).to.be.a('string').and.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$/);",
+                  "    pm.expect(Number.isFinite(Date.parse(receipt.receivedAt))).to.equal(true);",
+                  "    pm.expect(receipt.status).to.equal('received');",
+                  "    valid = true;",
+                  "  });",
+                  "  const key = pm.variables.get('requestKey');",
+                  "  const base = pm.environment.get('baseUrl');",
+                  "  const hasOriginal = pm.environment.get('receiptKey') === key && pm.environment.get('receiptBaseUrl') === base;",
+                  "  let matches = true;",
+                  "  if (hasOriginal) {",
+                  "    matches = receipt.enquiryId === pm.environment.get('enquiryId') && receipt.receivedAt === pm.environment.get('receivedAt');",
+                  "    pm.test('Existing intent retains its original receipt', function () { pm.expect(matches).to.equal(true); });",
+                  "  }",
+                  "  if (valid && matches) {",
+                  "    pm.environment.set('receiptKey', key);",
+                  "    pm.environment.set('receiptBaseUrl', base);",
+                  "    pm.environment.set('enquiryId', receipt.enquiryId);",
+                  "    pm.environment.set('receivedAt', receipt.receivedAt);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{requestKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "Send first. Expect 201 for a fresh UUIDv4, or 200 when confirming/resending the same intent. Captures its reference/time only after a valid receipt. Keep the key unchanged after network/storage uncertainty. Record the key/reference before explicitly starting a different intent.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 201",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{requestKey}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "Send first. Expect 201 for a fresh UUIDv4, or 200 when confirming/resending the same intent. Captures its reference/time only after a valid receipt. Keep the key unchanged after network/storage uncertainty. Record the key/reference before explicitly starting a different intent.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"enquiryId\": \"5d826d0f-82a4-4867-ad59-38c850d9104d\",\n  \"receivedAt\": \"2026-10-25T01:00:00.000Z\",\n  \"status\": \"received\"\n}"
+            },
+            {
+              "name": "Contract example: HTTP 200",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{requestKey}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "Send first. Expect 201 for a fresh UUIDv4, or 200 when confirming/resending the same intent. Captures its reference/time only after a valid receipt. Keep the key unchanged after network/storage uncertainty. Record the key/reference before explicitly starting a different intent.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"enquiryId\": \"5d826d0f-82a4-4867-ad59-38c850d9104d\",\n  \"receivedAt\": \"2026-10-25T01:00:00.000Z\",\n  \"status\": \"received\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "02 Replay the saved enquiry",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const key = pm.environment.get('enquiryKey');",
+                  "if (!new RegExp(\"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\", 'i').test(key || '') || pm.environment.get('receiptKey') !== key || pm.environment.get('receiptBaseUrl') !== pm.environment.get('baseUrl') || !pm.environment.get('enquiryId') || !pm.environment.get('receivedAt')) {",
+                  "  console.error('Blocked: first send 01 Save synthetic enquiry and receive a valid receipt for this key/baseUrl.');",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error('Blocked: first send 01 Save synthetic enquiry and receive a valid receipt for this key/baseUrl.');",
+                  "}",
+                  "pm.variables.set('requestKey', key);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Replay returns 200', function () { pm.expect(pm.response.code).to.equal(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test('Replay returns exactly the original receipt', function () {",
+                  "    pm.expect(pm.response.json()).to.deep.equal({",
+                  "      enquiryId: pm.environment.get('enquiryId'),",
+                  "      receivedAt: pm.environment.get('receivedAt'),",
+                  "      status: 'received'",
+                  "    });",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{requestKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "Run after 01 succeeds. Expect 200 and the exact original reference/time, including after an app restart. Creates no new intent or quota charge.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 200",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{requestKey}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "Run after 01 succeeds. Expect 200 and the exact original reference/time, including after an app restart. Creates no new intent or quota charge.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"enquiryId\": \"5d826d0f-82a4-4867-ad59-38c850d9104d\",\n  \"receivedAt\": \"2026-10-25T01:00:00.000Z\",\n  \"status\": \"received\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "03 Conflict with changed message",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const key = pm.environment.get('enquiryKey');",
+                  "if (!new RegExp(\"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$\", 'i').test(key || '') || pm.environment.get('receiptKey') !== key || pm.environment.get('receiptBaseUrl') !== pm.environment.get('baseUrl') || !pm.environment.get('enquiryId') || !pm.environment.get('receivedAt')) {",
+                  "  console.error('Blocked: first send 01 Save synthetic enquiry and receive a valid receipt for this key/baseUrl.');",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error('Blocked: first send 01 Save synthetic enquiry and receive a valid receipt for this key/baseUrl.');",
+                  "}",
+                  "pm.variables.set('requestKey', key);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 409', function () { pm.expect(pm.response.code).to.equal(409); });",
+                  "if (pm.response.code === 409) {",
+                  "  pm.test('Contracted safe error is returned', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.equal(\"IDEMPOTENCY_CONFLICT\");",
+                  "    pm.expect(body.message).to.equal(\"Start a new enquiry to send different details.\");",
+                  "    pm.expect(Object.keys(body).every(key => ['code', 'message', 'fieldErrors'].includes(key))).to.equal(true);",
+                  "    if (body.fieldErrors !== undefined) {",
+                  "      pm.expect(409).to.equal(400);",
+                  "      pm.expect(body.fieldErrors).to.be.an('object');",
+                  "      pm.expect(Object.keys(body.fieldErrors).length).to.be.above(0);",
+                  "      pm.expect(Object.keys(body.fieldErrors).every(key => ['name', 'email', 'message'].includes(key))).to.equal(true);",
+                  "      const fieldMessages = {\"name\":\"Enter a name using 1 to 100 characters, without control characters.\",\"email\":\"Enter a valid email address using at most 254 characters.\",\"message\":\"Use at most 2,000 characters of plain text, without control characters.\"};",
+                  "      Object.keys(body.fieldErrors).forEach(key => pm.expect(body.fieldErrors[key]).to.equal(fieldMessages[key]));",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{requestKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"A different synthetic intent.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "Run after 01 succeeds. Uses its key with changed content. Expect 409 IDEMPOTENCY_CONFLICT. Original receipt/state remain unchanged.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 409",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{requestKey}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"A different synthetic intent.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "Run after 01 succeeds. Uses its key with changed content. Expect 409 IDEMPOTENCY_CONFLICT. Original receipt/state remain unchanged.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"code\": \"IDEMPOTENCY_CONFLICT\",\n  \"message\": \"Start a new enquiry to send different details.\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Validation and request guards",
+      "item": [
+        {
+          "name": "04 Missing idempotency key",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('requestKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 400', function () { pm.expect(pm.response.code).to.equal(400); });",
+                  "if (pm.response.code === 400) {",
+                  "  pm.test('Contracted safe error is returned', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.equal(\"INVALID_REQUEST\");",
+                  "    pm.expect(body.message).to.equal(\"Check your enquiry details.\");",
+                  "    pm.expect(Object.keys(body).every(key => ['code', 'message', 'fieldErrors'].includes(key))).to.equal(true);",
+                  "    if (body.fieldErrors !== undefined) {",
+                  "      pm.expect(400).to.equal(400);",
+                  "      pm.expect(body.fieldErrors).to.be.an('object');",
+                  "      pm.expect(Object.keys(body.fieldErrors).length).to.be.above(0);",
+                  "      pm.expect(Object.keys(body.fieldErrors).every(key => ['name', 'email', 'message'].includes(key))).to.equal(true);",
+                  "      const fieldMessages = {\"name\":\"Enter a name using 1 to 100 characters, without control characters.\",\"email\":\"Enter a valid email address using at most 254 characters.\",\"message\":\"Use at most 2,000 characters of plain text, without control characters.\"};",
+                  "      Object.keys(body.fieldErrors).forEach(key => pm.expect(body.fieldErrors[key]).to.equal(fieldMessages[key]));",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "Intentionally omits Idempotency-Key. Expect 400 INVALID_REQUEST. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 400",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "Intentionally omits Idempotency-Key. Expect 400 INVALID_REQUEST. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"code\": \"INVALID_REQUEST\",\n  \"message\": \"Check your enquiry details.\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "05 Invalid idempotency key",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('requestKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 400', function () { pm.expect(pm.response.code).to.equal(400); });",
+                  "if (pm.response.code === 400) {",
+                  "  pm.test('Contracted safe error is returned', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.equal(\"INVALID_REQUEST\");",
+                  "    pm.expect(body.message).to.equal(\"Check your enquiry details.\");",
+                  "    pm.expect(Object.keys(body).every(key => ['code', 'message', 'fieldErrors'].includes(key))).to.equal(true);",
+                  "    if (body.fieldErrors !== undefined) {",
+                  "      pm.expect(400).to.equal(400);",
+                  "      pm.expect(body.fieldErrors).to.be.an('object');",
+                  "      pm.expect(Object.keys(body.fieldErrors).length).to.be.above(0);",
+                  "      pm.expect(Object.keys(body.fieldErrors).every(key => ['name', 'email', 'message'].includes(key))).to.equal(true);",
+                  "      const fieldMessages = {\"name\":\"Enter a name using 1 to 100 characters, without control characters.\",\"email\":\"Enter a valid email address using at most 254 characters.\",\"message\":\"Use at most 2,000 characters of plain text, without control characters.\"};",
+                  "      Object.keys(body.fieldErrors).forEach(key => pm.expect(body.fieldErrors[key]).to.equal(fieldMessages[key]));",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "invalid-key",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "Intentionally sends a non-UUID key. Expect 400 INVALID_REQUEST. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 400",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "invalid-key",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "Intentionally sends a non-UUID key. Expect 400 INVALID_REQUEST. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"code\": \"INVALID_REQUEST\",\n  \"message\": \"Check your enquiry details.\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "06 Invalid required fields",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('requestKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 400', function () { pm.expect(pm.response.code).to.equal(400); });",
+                  "if (pm.response.code === 400) {",
+                  "  pm.test('Contracted safe error is returned', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.equal(\"INVALID_REQUEST\");",
+                  "    pm.expect(body.message).to.equal(\"Check your enquiry details.\");",
+                  "    pm.expect(Object.keys(body).every(key => ['code', 'message', 'fieldErrors'].includes(key))).to.equal(true);",
+                  "    if (body.fieldErrors !== undefined) {",
+                  "      pm.expect(400).to.equal(400);",
+                  "      pm.expect(body.fieldErrors).to.be.an('object');",
+                  "      pm.expect(Object.keys(body.fieldErrors).length).to.be.above(0);",
+                  "      pm.expect(Object.keys(body.fieldErrors).every(key => ['name', 'email', 'message'].includes(key))).to.equal(true);",
+                  "      const fieldMessages = {\"name\":\"Enter a name using 1 to 100 characters, without control characters.\",\"email\":\"Enter a valid email address using at most 254 characters.\",\"message\":\"Use at most 2,000 characters of plain text, without control characters.\"};",
+                  "      Object.keys(body.fieldErrors).forEach(key => pm.expect(body.fieldErrors[key]).to.equal(fieldMessages[key]));",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{requestKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"email\": \"not-an-email\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "Intentionally invalid name/email. Expect 400 INVALID_REQUEST with associated field errors. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 400",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{requestKey}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"\",\n  \"email\": \"not-an-email\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "Intentionally invalid name/email. Expect 400 INVALID_REQUEST with associated field errors. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"code\": \"INVALID_REQUEST\",\n  \"message\": \"Check your enquiry details.\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "07 Unknown JSON property",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('requestKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 400', function () { pm.expect(pm.response.code).to.equal(400); });",
+                  "if (pm.response.code === 400) {",
+                  "  pm.test('Contracted safe error is returned', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.equal(\"INVALID_REQUEST\");",
+                  "    pm.expect(body.message).to.equal(\"Check your enquiry details.\");",
+                  "    pm.expect(Object.keys(body).every(key => ['code', 'message', 'fieldErrors'].includes(key))).to.equal(true);",
+                  "    if (body.fieldErrors !== undefined) {",
+                  "      pm.expect(400).to.equal(400);",
+                  "      pm.expect(body.fieldErrors).to.be.an('object');",
+                  "      pm.expect(Object.keys(body.fieldErrors).length).to.be.above(0);",
+                  "      pm.expect(Object.keys(body.fieldErrors).every(key => ['name', 'email', 'message'].includes(key))).to.equal(true);",
+                  "      const fieldMessages = {\"name\":\"Enter a name using 1 to 100 characters, without control characters.\",\"email\":\"Enter a valid email address using at most 254 characters.\",\"message\":\"Use at most 2,000 characters of plain text, without control characters.\"};",
+                  "      Object.keys(body.fieldErrors).forEach(key => pm.expect(body.fieldErrors[key]).to.equal(fieldMessages[key]));",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{requestKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\",\n  \"unexpected\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "The wire schema is closed. Expect 400 INVALID_REQUEST for the extra field. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 400",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{requestKey}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\",\n  \"unexpected\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "The wire schema is closed. Expect 400 INVALID_REQUEST for the extra field. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"code\": \"INVALID_REQUEST\",\n  \"message\": \"Check your enquiry details.\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "08 Malformed JSON",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('requestKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 400', function () { pm.expect(pm.response.code).to.equal(400); });",
+                  "if (pm.response.code === 400) {",
+                  "  pm.test('Contracted safe error is returned', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.equal(\"INVALID_REQUEST\");",
+                  "    pm.expect(body.message).to.equal(\"Check your enquiry details.\");",
+                  "    pm.expect(Object.keys(body).every(key => ['code', 'message', 'fieldErrors'].includes(key))).to.equal(true);",
+                  "    if (body.fieldErrors !== undefined) {",
+                  "      pm.expect(400).to.equal(400);",
+                  "      pm.expect(body.fieldErrors).to.be.an('object');",
+                  "      pm.expect(Object.keys(body.fieldErrors).length).to.be.above(0);",
+                  "      pm.expect(Object.keys(body.fieldErrors).every(key => ['name', 'email', 'message'].includes(key))).to.equal(true);",
+                  "      const fieldMessages = {\"name\":\"Enter a name using 1 to 100 characters, without control characters.\",\"email\":\"Enter a valid email address using at most 254 characters.\",\"message\":\"Use at most 2,000 characters of plain text, without control characters.\"};",
+                  "      Object.keys(body.fieldErrors).forEach(key => pm.expect(body.fieldErrors[key]).to.equal(fieldMessages[key]));",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{requestKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "Intentionally incomplete JSON. Expect 400 INVALID_REQUEST. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 400",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{requestKey}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "Intentionally incomplete JSON. Expect 400 INVALID_REQUEST. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"code\": \"INVALID_REQUEST\",\n  \"message\": \"Check your enquiry details.\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "09 Unsupported content type",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('requestKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 415', function () { pm.expect(pm.response.code).to.equal(415); });",
+                  "if (pm.response.code === 415) {",
+                  "  pm.test('Contracted safe error is returned', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.equal(\"UNSUPPORTED_MEDIA_TYPE\");",
+                  "    pm.expect(body.message).to.equal(\"Send your enquiry as UTF-8 JSON.\");",
+                  "    pm.expect(Object.keys(body).every(key => ['code', 'message', 'fieldErrors'].includes(key))).to.equal(true);",
+                  "    if (body.fieldErrors !== undefined) {",
+                  "      pm.expect(415).to.equal(400);",
+                  "      pm.expect(body.fieldErrors).to.be.an('object');",
+                  "      pm.expect(Object.keys(body.fieldErrors).length).to.be.above(0);",
+                  "      pm.expect(Object.keys(body.fieldErrors).every(key => ['name', 'email', 'message'].includes(key))).to.equal(true);",
+                  "      const fieldMessages = {\"name\":\"Enter a name using 1 to 100 characters, without control characters.\",\"email\":\"Enter a valid email address using at most 254 characters.\",\"message\":\"Use at most 2,000 characters of plain text, without control characters.\"};",
+                  "      Object.keys(body.fieldErrors).forEach(key => pm.expect(body.fieldErrors[key]).to.equal(fieldMessages[key]));",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "text/plain",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{requestKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "text"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "Intentionally sends text/plain rather than application/json. Expect 415 UNSUPPORTED_MEDIA_TYPE. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 415",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/plain",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{requestKey}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "text"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "Intentionally sends text/plain rather than application/json. Expect 415 UNSUPPORTED_MEDIA_TYPE. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "Unsupported Media Type",
+              "code": 415,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"code\": \"UNSUPPORTED_MEDIA_TYPE\",\n  \"message\": \"Send your enquiry as UTF-8 JSON.\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "10 Foreign Origin header",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('requestKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 403', function () { pm.expect(pm.response.code).to.equal(403); });",
+                  "if (pm.response.code === 403) {",
+                  "  pm.test('Contracted safe error is returned', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.equal(\"REQUEST_NOT_ALLOWED\");",
+                  "    pm.expect(body.message).to.equal(\"This request is not allowed.\");",
+                  "    pm.expect(Object.keys(body).every(key => ['code', 'message', 'fieldErrors'].includes(key))).to.equal(true);",
+                  "    if (body.fieldErrors !== undefined) {",
+                  "      pm.expect(403).to.equal(400);",
+                  "      pm.expect(body.fieldErrors).to.be.an('object');",
+                  "      pm.expect(Object.keys(body.fieldErrors).length).to.be.above(0);",
+                  "      pm.expect(Object.keys(body.fieldErrors).every(key => ['name', 'email', 'message'].includes(key))).to.equal(true);",
+                  "      const fieldMessages = {\"name\":\"Enter a name using 1 to 100 characters, without control characters.\",\"email\":\"Enter a valid email address using at most 254 characters.\",\"message\":\"Use at most 2,000 characters of plain text, without control characters.\"};",
+                  "      Object.keys(body.fieldErrors).forEach(key => pm.expect(body.fieldErrors[key]).to.equal(fieldMessages[key]));",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{requestKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Origin",
+                "value": "https://foreign.example.test",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "The destination remains the exact loopback enquiry URL. Only the Origin header contains a foreign test string. Expect 403 REQUEST_NOT_ALLOWED. No external request or row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 403",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{requestKey}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "https://foreign.example.test",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Test Learner\",\n  \"email\": \"learner@example.test\",\n  \"message\": \"Synthetic enquiry for local manual testing.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "The destination remains the exact loopback enquiry URL. Only the Origin header contains a foreign test string. Expect 403 REQUEST_NOT_ALLOWED. No external request or row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"code\": \"REQUEST_NOT_ALLOWED\",\n  \"message\": \"This request is not allowed.\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "11 Oversized request body",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('requestKey', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.variables.set('oversizedBody', JSON.stringify({\"name\":\"Test Learner\",\"email\":\"learner@example.test\",\"message\":\"\"}).replace('\"message\":\"\"', '\"message\":\"' + 'X'.repeat(9000) + '\"'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Expected HTTP 413', function () { pm.expect(pm.response.code).to.equal(413); });",
+                  "if (pm.response.code === 413) {",
+                  "  pm.test('Contracted safe error is returned', function () {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.code).to.equal(\"PAYLOAD_TOO_LARGE\");",
+                  "    pm.expect(body.message).to.equal(\"Your enquiry is too long. Please shorten it.\");",
+                  "    pm.expect(Object.keys(body).every(key => ['code', 'message', 'fieldErrors'].includes(key))).to.equal(true);",
+                  "    if (body.fieldErrors !== undefined) {",
+                  "      pm.expect(413).to.equal(400);",
+                  "      pm.expect(body.fieldErrors).to.be.an('object');",
+                  "      pm.expect(Object.keys(body.fieldErrors).length).to.be.above(0);",
+                  "      pm.expect(Object.keys(body.fieldErrors).every(key => ['name', 'email', 'message'].includes(key))).to.equal(true);",
+                  "      const fieldMessages = {\"name\":\"Enter a name using 1 to 100 characters, without control characters.\",\"email\":\"Enter a valid email address using at most 254 characters.\",\"message\":\"Use at most 2,000 characters of plain text, without control characters.\"};",
+                  "      Object.keys(body.fieldErrors).forEach(key => pm.expect(body.fieldErrors[key]).to.equal(fieldMessages[key]));",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{requestKey}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{{oversizedBody}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/enquiries",
+            "description": "Generates an ASCII JSON body over the 8192-byte request limit. Expect 413 PAYLOAD_TOO_LARGE before field validation. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+          },
+          "response": [
+            {
+              "name": "Contract example: HTTP 413",
+              "originalRequest": {
+                "method": "POST",
+                "auth": {
+                  "type": "noauth"
+                },
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{requestKey}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{{oversizedBody}}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseUrl}}/api/v1/enquiries",
+                "description": "Generates an ASCII JSON body over the 8192-byte request limit. Expect 413 PAYLOAD_TOO_LARGE before field validation. No row should be created.\n\nCanonical operation: createEnquiry. Local synthetic target only. This is a manual case, not an additional API endpoint."
+              },
+              "status": "Payload Too Large",
+              "code": 413,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"code\": \"PAYLOAD_TOO_LARGE\",\n  \"message\": \"Your enquiry is too long. Please shorten it.\"\n}"
+            }
+          ],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    }
+  ]
+}

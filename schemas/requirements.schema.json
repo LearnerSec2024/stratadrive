@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:stratadrive:requirements:v1",
+  "title": "StrataDrive requirements catalogue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "scope", "activePhase", "requirements", "testCases"],
+  "properties": {
+    "version": { "const": 1 },
+    "scope": { "type": "string", "pattern": "^iteration-[0-7][a-z]$" },
+    "activePhase": { "type": "integer", "minimum": 0, "maximum": 7 },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/requirement" }
+    },
+    "testCases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/testCase" }
+    }
+  },
+  "$defs": {
+    "text": { "type": "string", "pattern": "\\S", "minLength": 1 },
+    "requirementId": { "type": "string", "pattern": "^(BR|TR|NFR)-[A-Z0-9]+(?:-[A-Z0-9]+)*$" },
+    "technicalId": { "type": "string", "pattern": "^(TR|NFR)-[A-Z0-9]+(?:-[A-Z0-9]+)*$" },
+    "caseId": { "type": "string", "pattern": "^TC-[A-Z0-9]+(?:-[A-Z0-9]+)*$" },
+    "testFile": { "type": "string", "pattern": "^tests/.+\\.(test|spec)\\.[cm]?[jt]sx?$" },
+    "api": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["applicability", "reason"],
+          "properties": {
+            "applicability": { "const": "none" },
+            "reason": { "$ref": "#/$defs/text" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["applicability", "operations"],
+          "properties": {
+            "applicability": { "const": "operations" },
+            "operations": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/text" }
+            }
+          }
+        }
+      ]
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "title", "phase", "status", "parents", "verification", "api"],
+      "properties": {
+        "id": { "$ref": "#/$defs/requirementId" },
+        "kind": { "enum": ["business", "technical", "nonfunctional"] },
+        "title": { "$ref": "#/$defs/text" },
+        "phase": { "type": "integer", "minimum": 0, "maximum": 7 },
+        "status": { "enum": ["proposed", "approved", "implemented", "verified"] },
+        "parents": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/requirementId" }
+        },
+        "verification": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/caseId" }
+        },
+        "api": { "$ref": "#/$defs/api" }
+      }
+    },
+    "testCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "requirements", "status", "verification"],
+      "properties": {
+        "id": { "$ref": "#/$defs/caseId" },
+        "title": { "$ref": "#/$defs/text" },
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/technicalId" }
+        },
+        "status": { "enum": ["planned", "implemented"] },
+        "verification": { "enum": ["automated", "manual"] },
+        "file": { "$ref": "#/$defs/testFile" },
+        "procedure": { "$ref": "#/$defs/text" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "verification": { "const": "manual" } } },
+          "then": {
+            "properties": { "procedure": { "$ref": "#/$defs/text" } },
+            "required": ["procedure"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "verification": { "const": "automated" },
+              "status": { "const": "implemented" }
+            }
+          },
+          "then": {
+            "properties": { "file": { "$ref": "#/$defs/testFile" } },
+            "required": ["file"]
+          }
+        }
+      ]
+    }
+  }
+}

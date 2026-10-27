@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "description": "Stable machine-readable error identifier."
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Safe public message without secrets or personal information."
+        }
+      },
+      "examples": [
+        {
+          "code": "VALIDATION_ERROR",
+          "message": "Invalid request."
+        }
+      ]
+    },
+    "EnquiryRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "email"
+      ],
+      "description": "Raw wire envelope. EnquiryNormalized also applies after trimming/NFC, lowercasing only the email domain, and normalizing message line endings. Unknown properties and over-limit raw fields are rejected. Unpaired surrogates are rejected.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[^\\u0000-\\u001F\\u007F]*[^\\s\\u0000-\\u001F\\u007F][^\\u0000-\\u001F\\u007F]*$"
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 254,
+          "pattern": "^[\\x20-\\x7E]+$",
+          "description": "ASCII email; outer whitespace is trimmed before normalized email syntax validation."
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 2000,
+          "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+        }
+      },
+      "examples": [
+        {
+          "name": "Test Learner",
+          "email": "learner@example.test",
+          "message": "Synthetic enquiry for local manual testing."
+        }
+      ]
+    },
+    "EnquiryNormalized": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "email",
+        "message"
+      ],
+      "description": "Normative second validation stage after normalization. Empty or omitted message becomes null. Name/email must be nonempty after trimming; all strings must contain valid Unicode scalars.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "pattern": "^[^\\u0000-\\u001F\\u007F]*[^\\s\\u0000-\\u001F\\u007F][^\\u0000-\\u001F\\u007F]*$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254,
+          "pattern": "^[\\x21-\\x7E]+$"
+        },
+        "message": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 2000,
+              "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "examples": [
+        {
+          "name": "Test Learner",
+          "email": "learner@example.test",
+          "message": "Synthetic enquiry for local manual testing."
+        },
+        {
+          "name": "Test Learner",
+          "email": "learner@example.test",
+          "message": null
+        }
+      ]
+    },
+    "EnquiryReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enquiryId",
+        "receivedAt",
+        "status"
+      ],
+      "properties": {
+        "enquiryId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "receivedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$",
+          "description": "Database-generated received timestamp in the committed row, serialized in UTC. Not an exact commit timestamp."
+        },
+        "status": {
+          "type": "string",
+          "const": "received"
+        }
+      },
+      "examples": [
+        {
+          "enquiryId": "5d826d0f-82a4-4867-ad59-38c850d9104d",
+          "receivedAt": "2026-10-25T01:00:00.000Z",
+          "status": "received"
+        }
+      ]
+    },
+    "EnquiryFieldErrors": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "Enter a name using 1 to 100 characters, without control characters."
+        },
+        "email": {
+          "type": "string",
+          "const": "Enter a valid email address using at most 254 characters."
+        },
+        "message": {
+          "type": "string",
+          "const": "Use at most 2,000 characters of plain text, without control characters."
+        }
+      },
+      "examples": [
+        {
+          "name": "Enter a name using 1 to 100 characters, without control characters."
+        }
+      ]
+    },
+    "EnquiryError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "INVALID_REQUEST",
+            "REQUEST_NOT_ALLOWED",
+            "REQUEST_TIMEOUT",
+            "IDEMPOTENCY_CONFLICT",
+            "PAYLOAD_TOO_LARGE",
+            "UNSUPPORTED_MEDIA_TYPE",
+            "RATE_LIMITED",
+            "INTERNAL_ERROR",
+            "STORAGE_UNAVAILABLE"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "fieldErrors": {
+          "$ref": "#/$defs/EnquiryFieldErrors"
+        }
+      },
+      "examples": [
+        {
+          "code": "INVALID_REQUEST",
+          "message": "Check your enquiry details."
+        }
+      ],
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "INVALID_REQUEST"
+            },
+            "message": {
+              "const": "Check your enquiry details."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "REQUEST_NOT_ALLOWED"
+            },
+            "message": {
+              "const": "This request is not allowed."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "REQUEST_TIMEOUT"
+            },
+            "message": {
+              "const": "The request took too long. Please retry."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "IDEMPOTENCY_CONFLICT"
+            },
+            "message": {
+              "const": "Start a new enquiry to send different details."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "PAYLOAD_TOO_LARGE"
+            },
+            "message": {
+              "const": "Your enquiry is too long. Please shorten it."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "UNSUPPORTED_MEDIA_TYPE"
+            },
+            "message": {
+              "const": "Send your enquiry as UTF-8 JSON."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "RATE_LIMITED"
+            },
+            "message": {
+              "const": "Please wait before sending another enquiry."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "INTERNAL_ERROR"
+            },
+            "message": {
+              "const": "We could not confirm your enquiry. Please retry."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "const": "STORAGE_UNAVAILABLE"
+            },
+            "message": {
+              "const": "We could not confirm your enquiry. Please retry."
+            }
+          }
+        }
+      ]
+    }
+  }
+}

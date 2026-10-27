@@ -1,0 +1,626 @@
+version: 1
+scope: iteration-1b
+activePhase: 1
+requirements:
+  - id: BR-P1-DEVSTORE-001
+    kind: business
+    title: Develop enquiry storage against isolated local Supabase using synthetic data without cloud or
+      production access.
+    phase: 1
+    status: approved
+    parents: []
+    verification:
+      - TC-P1B-SETUP-TARGET-001
+      - TC-P1B-SETUP-ISOLATION-001
+      - TC-P1B-SETUP-MANUAL-001
+    api:
+      applicability: none
+      reason: Local development infrastructure setup creates no business application API operation.
+  - id: TR-P1-DEVSTORE-001
+    kind: technical
+    title: Use pinned official Compose artifacts, generated local credentials, guarded local targets and explicit
+      loopback port mappings for a bounded five-service Supabase stack.
+    phase: 1
+    status: approved
+    parents:
+      - BR-P1-DEVSTORE-001
+    verification:
+      - TC-P1B-SETUP-TARGET-001
+      - TC-P1B-SETUP-ISOLATION-001
+      - TC-P1B-SETUP-MANUAL-001
+    api:
+      applicability: none
+      reason: Local lifecycle scripts and service health checks expose no business enquiry API operation.
+  - id: BR-P1-WEB-001
+    kind: business
+    title: Customers understand StrataDrive's driving-instruction purpose and the next booking step through a
+      modern responsive public website.
+    phase: 1
+    status: approved
+    parents: []
+    verification:
+      - TC-P1A-CONTENT-001
+      - TC-P1A-E2E-001
+      - TC-P1A-OWNER-001
+    api:
+      applicability: none
+      reason: Public content and navigation are server-rendered UI with no business API operation.
+  - id: TR-P1-WEB-001
+    kind: technical
+    title: Provide a responsive homepage with meaningful metadata, clear booking entry, working section links and
+      accessible mobile navigation.
+    phase: 1
+    status: approved
+    parents:
+      - BR-P1-WEB-001
+    verification:
+      - TC-P1A-CONTENT-001
+      - TC-P1A-E2E-001
+      - TC-P1A-OWNER-001
+    api:
+      applicability: none
+      reason: Homepage and navigation do not expose a business HTTP API.
+  - id: BR-P1-PREVIEW-001
+    kind: business
+    title: Customers can explore the intended booking journey without false availability or reservation claims.
+    phase: 1
+    status: approved
+    parents: []
+    verification:
+      - TC-P1A-E2E-001
+      - TC-P1A-OWNER-001
+    api:
+      applicability: none
+      reason: This increment provides a labelled preview rather than a reservation service.
+  - id: TR-P1-PREVIEW-001
+    kind: technical
+    title: Provide a clearly labelled booking preview with usable local controls and no personal-data collection,
+      live slots, submission or confirmation.
+    phase: 1
+    status: approved
+    parents:
+      - BR-P1-PREVIEW-001
+    verification:
+      - TC-P1A-E2E-001
+      - TC-P1A-OWNER-001
+    api:
+      applicability: none
+      reason: Preview state is local UI state and performs no booking mutation.
+  - id: BR-P1-ACCESS-001
+    kind: business
+    title: Customers can use the public website across representative devices and input methods.
+    phase: 1
+    status: approved
+    parents: []
+    verification:
+      - TC-P1A-A11Y-001
+      - TC-P1A-MANUAL-001
+    api:
+      applicability: none
+      reason: Responsive layout and accessibility concern public UI.
+  - id: NFR-P1-A11Y-001
+    kind: nonfunctional
+    title: Use semantic landmarks and names, visible keyboard focus, readable contrast/reflow and reduced-motion
+      support.
+    phase: 1
+    status: approved
+    parents:
+      - BR-P1-ACCESS-001
+    verification:
+      - TC-P1A-A11Y-001
+      - TC-P1A-MANUAL-001
+      - TC-P1B-A11Y-001
+    api:
+      applicability: none
+      reason: These UI accessibility controls have no business API operation.
+  - id: BR-HISTORY-001
+    kind: business
+    title: Every phase has a clear dated history of progress and finished work for later review.
+    phase: 0
+    status: approved
+    parents: []
+    verification:
+      - TC-HISTORY-001
+    api:
+      applicability: none
+      reason: Progress history is an engineering governance requirement.
+  - id: TR-HISTORY-001
+    kind: technical
+    title: Maintain a central phase index and linked phase records covering changes, validation, decisions,
+      remaining work and owner acceptance at each handoff.
+    phase: 0
+    status: approved
+    parents:
+      - BR-HISTORY-001
+    verification:
+      - TC-HISTORY-001
+    api:
+      applicability: none
+      reason: Repository documentation and history maintenance expose no business API.
+  - id: BR-ACCEPT-001
+    kind: business
+    title: The owner can run and visually/manual-test every functional increment before explicitly accepting it.
+    phase: 0
+    status: approved
+    parents: []
+    verification:
+      - TC-LOCAL-001
+    api:
+      applicability: none
+      reason: Owner acceptance is an engineering workflow requirement.
+  - id: TR-LOCAL-001
+    kind: technical
+    title: Every functional handoff supplies verified local setup, commands, URLs, synthetic inputs, expected
+      results, limitations and shutdown steps.
+    phase: 0
+    status: approved
+    parents:
+      - BR-ACCEPT-001
+    verification:
+      - TC-LOCAL-001
+      - TC-P1A-OWNER-001
+      - TC-P1B-OWNER-001
+    api:
+      applicability: none
+      reason: The handoff and explicit owner disposition do not expose an application API.
+  - id: BR-GOV-001
+    kind: business
+    title: Engineering work is bounded, independently reviewed and isolated from production.
+    phase: 0
+    status: approved
+    parents: []
+    verification:
+      - TC-REVIEW-001
+      - TC-TARGET-001
+      - TC-AGENT-001
+    api:
+      applicability: none
+      reason: Engineering governance has no business HTTP operation.
+  - id: BR-QUAL-001
+    kind: business
+    title: Requirements and contracts have repeatable foundation validation before functional delivery.
+    phase: 0
+    status: approved
+    parents: []
+    verification:
+      - TC-TRACE-001
+      - TC-CONTRACT-001
+      - TC-HTTP-001
+      - TC-E2E-001
+    api:
+      applicability: none
+      reason: This iteration validates tooling and the existing starter rather than business endpoints.
+  - id: BR-SOURCE-001
+    kind: business
+    title: GitHub is authoritative and Azure independently validates identical immutable GitHub source.
+    phase: 0
+    status: approved
+    parents: []
+    verification:
+      - TC-CI-001
+      - TC-REVIEW-001
+    api:
+      applicability: none
+      reason: Repository and CI governance have no application API operation.
+  - id: TR-AGENT-001
+    kind: technical
+    title: Four reusable roles use task packets, single file ownership and explicit permission boundaries.
+    phase: 0
+    status: approved
+    parents:
+      - BR-GOV-001
+    verification:
+      - TC-REVIEW-001
+      - TC-AGENT-001
+    api:
+      applicability: none
+      reason: Agent configuration and review procedure are development controls.
+  - id: NFR-ISOLATION-001
+    kind: nonfunctional
+    title: Use synthetic data, local test targets, credential-free processes and explicit approval for external
+      changes.
+    phase: 0
+    status: approved
+    parents:
+      - BR-GOV-001
+    verification:
+      - TC-TARGET-001
+      - TC-REVIEW-001
+    api:
+      applicability: none
+      reason: Production isolation is an operational development boundary.
+  - id: TR-TRACE-001
+    kind: technical
+    title: Validate unique requirement/test IDs, reciprocal links, API applicability and referenced test files.
+    phase: 0
+    status: approved
+    parents:
+      - BR-QUAL-001
+    verification:
+      - TC-TRACE-001
+    api:
+      applicability: none
+      reason: The catalogue validator is a local engineering tool.
+  - id: TR-CONTRACT-001
+    kind: technical
+    title: Lint an OpenAPI 3.1 scaffold and validate component examples with JSON Schema 2020-12.
+    phase: 0
+    status: approved
+    parents:
+      - BR-QUAL-001
+    verification:
+      - TC-CONTRACT-001
+    api:
+      applicability: none
+      reason: Business paths are intentionally empty; this checks contract tooling only.
+  - id: TR-SMOKE-001
+    kind: technical
+    title: Exercise the public application through local production-mode HTTP and browser smoke checks.
+    phase: 0
+    status: approved
+    parents:
+      - BR-QUAL-001
+    verification:
+      - TC-HTTP-001
+      - TC-E2E-001
+    api:
+      applicability: none
+      reason: GET / serves public HTML and is not a contracted business API.
+  - id: TR-CI-001
+    kind: technical
+    title: Both providers run common required gates and retain comparable commit, lockfile and toolchain evidence.
+    phase: 0
+    status: approved
+    parents:
+      - BR-SOURCE-001
+    verification:
+      - TC-CI-001
+      - TC-REVIEW-001
+    api:
+      applicability: none
+      reason: CI identity is unrelated to application HTTP APIs.
+  - id: BR-P1-ENQ-001
+    kind: business
+    title: Visitors can save a synthetic local enquiry and receive an honest acknowledgement without reserving a
+      lesson.
+    phase: 1
+    status: approved
+    parents: []
+    verification:
+      - TC-P1B-API-001
+      - TC-P1B-DURABLE-001
+      - TC-P1B-IDEMPOTENCY-001
+      - TC-P1B-E2E-001
+    api:
+      applicability: operations
+      operations:
+        - createEnquiry
+  - id: BR-P1-PRIV-001
+    kind: business
+    title: Contact information is minimized and protected within the approved local preview.
+    phase: 1
+    status: approved
+    parents: []
+    verification:
+      - TC-P1B-SECURITY-001
+      - TC-P1B-ABUSE-001
+    api:
+      applicability: operations
+      operations:
+        - createEnquiry
+  - id: TR-P1-ENQ-001
+    kind: technical
+    title: Provide contract-validated bounded enquiry intake and an accessible local form.
+    phase: 1
+    status: approved
+    parents:
+      - BR-P1-ENQ-001
+    verification:
+      - TC-P1B-UNIT-001
+      - TC-P1B-CONTRACT-001
+      - TC-P1B-API-001
+      - TC-P1B-E2E-001
+      - TC-P1B-A11Y-001
+      - TC-P1B-OWNER-001
+    api:
+      applicability: operations
+      operations:
+        - createEnquiry
+  - id: TR-P1-DURABLE-001
+    kind: technical
+    title: Commit private PostgreSQL receipts with a dedicated execute-only application role and no in-memory
+      success fallback.
+    phase: 1
+    status: approved
+    parents:
+      - BR-P1-ENQ-001
+    verification:
+      - TC-P1B-DURABLE-001
+      - TC-P1B-IDEMPOTENCY-001
+      - TC-P1B-SECURITY-001
+    api:
+      applicability: operations
+      operations:
+        - createEnquiry
+  - id: TR-P1-RETRY-001
+    kind: technical
+    title: Atomically replay matching submission intents without duplicate rows or quota charges and reject
+      changed content.
+    phase: 1
+    status: approved
+    parents:
+      - BR-P1-ENQ-001
+    verification:
+      - TC-P1B-IDEMPOTENCY-001
+      - TC-P1B-E2E-001
+    api:
+      applicability: operations
+      operations:
+        - createEnquiry
+  - id: NFR-P1-PRIV-001
+    kind: nonfunctional
+    title: Deny public reads and app table access, protect credentials and avoid contact data in routine logs,
+      responses, URLs and bundles.
+    phase: 1
+    status: approved
+    parents:
+      - BR-P1-PRIV-001
+    verification:
+      - TC-P1B-SECURITY-001
+      - TC-P1B-API-001
+    api:
+      applicability: operations
+      operations:
+        - createEnquiry
+  - id: NFR-P1-ABUSE-001
+    kind: nonfunctional
+    title: Enforce actual streamed body budgets and durable global twenty-per-ten-minute admission without
+      trusting forwarded client identity.
+    phase: 1
+    status: approved
+    parents:
+      - BR-P1-PRIV-001
+    verification:
+      - TC-P1B-ABUSE-001
+      - TC-P1B-API-001
+    api:
+      applicability: operations
+      operations:
+        - createEnquiry
+testCases:
+  - id: TC-P1B-SETUP-TARGET-001
+    title: Reject remote or overridden Docker endpoints before local lifecycle commands.
+    requirements:
+      - TR-P1-DEVSTORE-001
+    status: implemented
+    verification: automated
+    file: tests/tooling/local-supabase.test.ts
+  - id: TC-P1B-SETUP-ISOLATION-001
+    title: Reject wildcard, merged or unexpected port mappings, unapproved services/images and unsafe mounts in
+      the rendered local stack.
+    requirements:
+      - TR-P1-DEVSTORE-001
+    status: implemented
+    verification: automated
+    file: tests/tooling/local-supabase.test.ts
+  - id: TC-P1B-SETUP-MANUAL-001
+    title: Independently verify running local services and offer Studio to the owner without claiming enquiry
+      persistence.
+    requirements:
+      - TR-P1-DEVSTORE-001
+    status: implemented
+    verification: manual
+    procedure: Follow docs/local-supabase.md guarded initialization/start/check/stop; verify scoped container
+      health, actual loopback bindings and host listeners, local Studio/API responses and read-only SQL. Use
+      synthetic data only, create no business records, and record pending or actual owner review separately in
+      docs/iterations/1b.md. Defined procedure is not runtime execution or acceptance.
+  - id: TC-P1A-CONTENT-001
+    title: Public content, metadata, navigation and representative desktop/mobile layouts follow the approved
+      preview scope.
+    requirements:
+      - TR-P1-WEB-001
+    status: implemented
+    verification: automated
+    file: tests/e2e/public-site.spec.ts
+  - id: TC-P1A-E2E-001
+    title: Reach and operate the booking preview without personal-data submission, fictional slots or reservation
+      claims.
+    requirements:
+      - TR-P1-WEB-001
+      - TR-P1-PREVIEW-001
+    status: implemented
+    verification: automated
+    file: tests/e2e/booking-preview.spec.ts
+  - id: TC-P1A-A11Y-001
+    title: Check homepage/booking landmarks, accessible controls, keyboard behavior, automated accessibility and
+      reduced-motion layout.
+    requirements:
+      - NFR-P1-A11Y-001
+    status: implemented
+    verification: automated
+    file: tests/e2e/public-accessibility.spec.ts
+  - id: TC-P1A-MANUAL-001
+    title: Review representative desktop/mobile reflow, focus, contrast and zoom, documenting the combinations
+      actually inspected.
+    requirements:
+      - NFR-P1-A11Y-001
+    status: implemented
+    verification: manual
+    procedure: Follow the Iteration 1A manual checklist in docs/iterations/1a.md; record actual
+      visual/keyboard/zoom evidence and review limits. Do not claim screen-reader or comprehensive
+      accessibility certification without execution.
+  - id: TC-P1A-OWNER-001
+    title: Owner runs the public homepage and booking preview locally and records explicit visual/manual
+      disposition.
+    requirements:
+      - TR-P1-WEB-001
+      - TR-P1-PREVIEW-001
+      - TR-LOCAL-001
+    status: implemented
+    verification: manual
+    procedure: Supply verified setup, commands, URLs and expected behavior using docs/manual-testing.md and
+      docs/iterations/1a.md; await owner feedback and record pending, changes requested or accepted against
+      the candidate. A defined procedure is not owner acceptance.
+  - id: TC-HISTORY-001
+    title: Review current phase status and dated history for finished work, evidence, decisions, remaining items
+      and explicit owner acceptance.
+    requirements:
+      - TR-HISTORY-001
+    status: implemented
+    verification: manual
+    procedure: Before each handoff follow docs/agent-workflow.md progress-history rules; update docs/progress.md
+      and the linked phase/iteration record, verify factual statuses and evidence links, and preserve prior
+      dated entries. This procedure is defined; later phase completion requires its own actual evidence and
+      owner acceptance.
+  - id: TC-LOCAL-001
+    title: Check the per-feature local review handoff and record explicit owner visual/manual acceptance against
+      its candidate.
+    requirements:
+      - TR-LOCAL-001
+    status: implemented
+    verification: manual
+    procedure: Follow docs/manual-testing.md for every functional increment; verify the actual
+      startup/URL/setup/checklist/shutdown instructions, then record pending, changes requested or explicit
+      owner acceptance in the iteration record. A defined procedure is not execution or feature acceptance;
+      consult the current iteration for actual outcomes.
+  - id: TC-AGENT-001
+    title: Reuse each reviewed role definition through explicit instruction packets and reject invalid role paths
+      or empty tasks.
+    requirements:
+      - TR-AGENT-001
+    status: implemented
+    verification: automated
+    file: tests/tooling/agent-packet.test.ts
+  - id: TC-TRACE-001
+    title: Accept valid traceability and reject structural, link, status, operation and file-reference errors.
+    requirements:
+      - TR-TRACE-001
+    status: implemented
+    verification: automated
+    file: tests/tooling/traceability.test.ts
+  - id: TC-TARGET-001
+    title: Accept approved loopback targets and reject remote, credentialed, redirected or ambiguous destinations.
+    requirements:
+      - NFR-ISOLATION-001
+    status: implemented
+    verification: automated
+    file: tests/tooling/test-target.test.ts
+  - id: TC-CONTRACT-001
+    title: Validate the scaffold and reject invalid component payloads, references and schema dialect behavior.
+    requirements:
+      - TR-CONTRACT-001
+    status: implemented
+    verification: automated
+    file: tests/contracts/schema-validation.test.ts
+  - id: TC-HTTP-001
+    title: Public application responds with successful HTML without following redirects.
+    requirements:
+      - TR-SMOKE-001
+    status: implemented
+    verification: automated
+    file: tests/api/scaffold.spec.ts
+  - id: TC-E2E-001
+    title: Chromium renders the public application using only the local application origin.
+    requirements:
+      - TR-SMOKE-001
+    status: implemented
+    verification: automated
+    file: tests/e2e/scaffold.spec.ts
+  - id: TC-CI-001
+    title: Accept matching independent successful CI manifests and reject stale, incomplete or mismatched evidence.
+    requirements:
+      - TR-CI-001
+    status: implemented
+    verification: automated
+    file: tests/tooling/ci-identity.test.ts
+  - id: TC-REVIEW-001
+    title: Inspect role loading, enforced reviewer permissions, nonoverlapping ownership and actual paired CI runs.
+    requirements:
+      - TR-AGENT-001
+      - NFR-ISOLATION-001
+      - TR-CI-001
+    status: implemented
+    verification: manual
+    procedure: Follow docs/agent-workflow.md and docs/testing-and-ci.md; record permission and role-load evidence,
+      final diff preservation, independent findings and paired CI source manifests in docs/iterations/0a.md.
+      Procedure existence is not execution evidence; remote activation is pending explicit approval.
+  - id: TC-P1B-UNIT-001
+    title: Canonical raw and normalized validation, Unicode and safe field errors.
+    requirements:
+      - TR-P1-ENQ-001
+    status: implemented
+    verification: automated
+    file: tests/unit/enquiries/validation.test.ts
+  - id: TC-P1B-CONTRACT-001
+    title: Canonical operation schemas, statuses, headers and generated-schema consistency.
+    requirements:
+      - TR-P1-ENQ-001
+    status: implemented
+    verification: automated
+    file: tests/contracts/enquiries.test.ts
+  - id: TC-P1B-API-001
+    title: Real bounded POST success and safe request/failure cases.
+    requirements:
+      - TR-P1-ENQ-001
+      - NFR-P1-PRIV-001
+      - NFR-P1-ABUSE-001
+    status: implemented
+    verification: automated
+    file: tests/api/enquiries.spec.ts
+  - id: TC-P1B-DURABLE-001
+    title: Actual private committed receipt, restart and unavailable-store behavior.
+    requirements:
+      - TR-P1-DURABLE-001
+    status: implemented
+    verification: automated
+    file: tests/integration/enquiries.persistence.test.ts
+  - id: TC-P1B-IDEMPOTENCY-001
+    title: Concurrent and sequential matching retries, changed payload conflicts and uncertain responses.
+    requirements:
+      - TR-P1-DURABLE-001
+      - TR-P1-RETRY-001
+    status: implemented
+    verification: automated
+    file: tests/integration/enquiries.idempotency.test.ts
+  - id: TC-P1B-ABUSE-001
+    title: Atomic quota boundaries, replay when full and new-window admission.
+    requirements:
+      - NFR-P1-ABUSE-001
+    status: implemented
+    verification: automated
+    file: tests/integration/enquiries.rate-limit.test.ts
+  - id: TC-P1B-SECURITY-001
+    title: Effective role/RLS privileges, lifecycle and scoped logging/bundle canaries.
+    requirements:
+      - NFR-P1-PRIV-001
+      - TR-P1-DURABLE-001
+    status: implemented
+    verification: automated
+    file: tests/integration/enquiries.permissions.test.ts
+  - id: TC-P1B-E2E-001
+    title: Synthetic enquiry UI, truthful receipt, preserved input and retry intent.
+    requirements:
+      - TR-P1-ENQ-001
+      - TR-P1-RETRY-001
+    status: implemented
+    verification: automated
+    file: tests/e2e/enquiries.spec.ts
+  - id: TC-P1B-A11Y-001
+    title: Enquiry keyboard/error focus, mobile reflow and scoped accessibility checks.
+    requirements:
+      - TR-P1-ENQ-001
+      - NFR-P1-A11Y-001
+    status: implemented
+    verification: automated
+    file: tests/e2e/enquiries-accessibility.spec.ts
+  - id: TC-P1B-OWNER-001
+    title: Owner reviews synthetic local submission and private durable row with the documented
+      preparation/retry/outage/shutdown procedure.
+    requirements:
+      - TR-P1-ENQ-001
+      - TR-LOCAL-001
+    status: implemented
+    verification: manual
+    procedure: Follow docs/iterations/1b-enquiry-packet.md and docs/manual-testing.md with npm start and synthetic
+      sample details; record actual candidate evidence and explicit owner disposition in
+      docs/iterations/1b.md. Defined procedure is not executed acceptance.

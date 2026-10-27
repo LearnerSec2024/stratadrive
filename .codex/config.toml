@@ -1,0 +1,4 @@
+# Select parent-session permissions explicitly at launch; role files cannot isolate children.
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3

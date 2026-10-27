@@ -1,0 +1,4 @@
+{
+  "development": { "project": "stratadrive-local", "databasePort": 54322, "apiPort": 54321, "studioPort": 54323, "credentials": ".env.local", "dataVolume": "stratadrive-local_db-data-bootstrap-v2" },
+  "test": { "project": "stratadrive-test", "databasePort": 55422, "apiPort": 55421, "studioPort": 55423, "credentials": ".env.test.local", "dataVolume": "stratadrive-test_db-data" }
+}

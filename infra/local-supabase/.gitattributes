@@ -1,0 +1,5 @@
+# Preserve upstream bytes for provenance verification and executable shell input.
+upstream/** -text
+bootstrap/*.sql text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf

@@ -4,23 +4,66 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "node scripts/start-local.mjs development",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "prebuild": "node scripts/generate-contract.mjs --check",
+    "prestart": "node scripts/generate-contract.mjs --check",
+    "start": "node scripts/start-local.mjs development",
+    "review:local": "node scripts/start-review.mjs",
+    "start:production": "node scripts/start-local.mjs production",
+    "start:test": "node scripts/start-local.mjs test",
+    "start:local": "node scripts/start-local.mjs production",
+    "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit --incremental false",
+    "traceability:check": "node scripts/check-traceability.mjs",
+    "contracts:check": "redocly lint contracts/openapi.yaml && node scripts/validate-contract.mjs && node scripts/generate-contract.mjs --check",
+    "contracts:generate": "node scripts/generate-contract.mjs",
+    "test:unit": "vitest run",
+    "test:api": "node scripts/enquiries-local.mjs run api",
+    "test:e2e": "node scripts/enquiries-local.mjs run e2e",
+    "test:integration": "node scripts/enquiries-local.mjs run integration",
+    "ci:validate": "node scripts/ci.mjs",
+    "ci:preflight": "node scripts/ci.mjs preflight",
+    "ci:compare": "node scripts/ci.mjs compare",
+    "agent:packet": "node scripts/agent-task.mjs",
+    "db:local:init": "node scripts/local-supabase.mjs init",
+    "db:local:preflight": "node scripts/local-supabase.mjs preflight",
+    "db:local:start": "node scripts/local-supabase.mjs start",
+    "db:local:check": "node scripts/local-supabase.mjs check",
+    "db:local:stop": "node scripts/local-supabase.mjs stop",
+    "enquiries:local:prepare": "node scripts/enquiries-local.mjs prepare",
+    "enquiries:local:sample": "node scripts/enquiries-local.mjs sample"
+  },
+  "packageManager": "npm@10.9.2",
+  "engines": {
+    "node": ">=22.15.0 <23",
+    "npm": "10.9.2"
   },
   "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
     "next": "16.4.3",
+    "pg": "8.23.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
+    "@redocly/cli": "2.71.0",
+    "@tailwindcss/postcss": "4.3.3",
     "@tailwindcss/turbopack": "^4",
-    "@types/node": "^20",
+    "@types/node": "22.20.5",
+    "@types/pg": "8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "supabase": "2.122.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "5.0.5",
+    "yaml": "2.9.1"
   }
 }

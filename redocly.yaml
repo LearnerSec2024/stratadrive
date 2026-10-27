@@ -1,0 +1,7 @@
+extends:
+  - recommended-strict
+rules:
+  # There are no operations in 0A. Require the canonical contract structure now;
+  # operation-specific recommended rules become effective with the first feature.
+  no-unused-components: off
+  info-contact: off
