@@ -77,7 +77,7 @@ http://127.0.0.1:54323/project/default/editor
 - GitHub Actions
 - Azure Pipelines
 
-The CI definitions are prepared. Remote activation and matching-source validation remain pending.
+The project source is published to the owner-approved public GitHub repository for peer review. Its first push triggered GitHub Actions validation. Successful remote validation evidence, Azure activation and matching-source comparison remain pending; see the dated [publication receipt](iterations/1b.md#2026-10-28--github-publication-receipt).
 
 Versions, component purposes, the architecture diagram and source references follow below.
 
@@ -87,7 +87,7 @@ Versions, component purposes, the architecture diagram and source references fol
 
 This is StrataDrive's single maintained technology-stack reference: the current components, their purpose, versions, connections and implementation status. Other documents link here for the stack and retain their own procedures, design rules or dated decisions.
 
-Reviewed **26 October 2026**, covering the implementation through Iteration 1B. Local synthetic enquiry intake is implemented and locally verified; explicit owner feature/manual acceptance remains pending. See [progress](progress.md) and [Iteration 1B](iterations/1b.md) for execution evidence and acceptance.
+Reviewed **28 October 2026**, covering the implementation through Iteration 1B and the public GitHub peer-review snapshot. Component versions and the local application/database topology are unchanged by publication. Local synthetic enquiry intake is implemented and locally verified; explicit owner feature/manual acceptance remains pending. See [progress](progress.md) and [Iteration 1B](iterations/1b.md) for execution evidence and acceptance.
 
 ### Visual overview
 
@@ -173,8 +173,8 @@ The supported database startup uses the guarded Compose helpers, rather than `su
 
 | System | Role | Current status / source |
 | --- | --- | --- |
-| Git / GitHub | Version control and the sole authoritative repository | [Repository governance](../AGENTS.md) |
-| GitHub Actions | Primary validation definition, targeting `ubuntu-24.04` | [Workflow](../.github/workflows/ci.yml) prepared locally; remote activation/evidence is pending |
+| Git / GitHub | Version control and the sole authoritative repository | Public [LearnerSec2024/stratadrive](https://github.com/LearnerSec2024/stratadrive), branch `master`, published for owner-authorized peer review; [governance](../AGENTS.md) |
+| GitHub Actions | Primary validation definition, targeting `ubuntu-24.04` | [Workflow](../.github/workflows/ci.yml) triggered by the first push; completed successful remote evidence is not yet recorded |
 | Azure Pipelines | Independent validation of the same immutable GitHub source, targeting `ubuntu-24.04` | [Pipeline](../azure-pipelines.yml) prepared locally; remote activation and matching-SHA parity are pending |
 
 Both definitions use the shared [CI runner](../scripts/ci.mjs), install/build independently and contain validation/reporting steps. Neither defines a deployment stage. Local validation is separate from remote execution evidence.
